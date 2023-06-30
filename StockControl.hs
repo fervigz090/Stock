@@ -46,30 +46,60 @@ stockToInt (INFONODE n)
   | otherwise = -1
 stockToInt (ROOTNODE _) = -1
 stockToInt (INNERNODE _ _) = -1
+
 -------------------------
 -- FUNCIÓN UPDATESTOCK --
 -------------------------
-
--- FUNCIÓN QUE MODIFICA EL VALOR ASOCIADO A UN PRODUCTO EN EL STOCK --
--- SÓLO PUEDE ALMACENAR NÚMEROS MAYORES O IGUALES A 0               --
-
 updateStock :: Stock -> String -> Int -> Stock
+updateStock (ROOTNODE l) p n = ROOTNODE (updateList l p n)
+updateStock (INNERNODE c l) p n
+  | c == head p = INNERNODE c (updateList l (tail p) n)
+  | otherwise = INNERNODE c l
+updateStock (INFONODE _) [] n = INFONODE n
+updateStock s _ _ = s
+
+updateList :: [Stock] -> String -> Int -> [Stock]
+updateList [] p n = [INNERNODE (head p) [INFONODE n]]
+updateList (x:xs) p n
+  | head p == getCharFromStock x = (updateStock x p n):xs
+  | otherwise = x:(updateList xs p n)
+
+getCharFromStock :: Stock -> Char
+getCharFromStock (INNERNODE c _) = c
+getCharFromStock _ = '\0'
 
 
 -----------------------
 -- FUNCIÓN LISTSTOCK --
 -----------------------
-
--- FUNCIÓN QUE DEVUELVE UNA LISTA PARES PRODUCTO-EXISTENCIA --
--- DEL CATÁLOGO QUE COMIENZAN POR LA CADENA PREFIJO p       --
 listStock :: Stock -> String -> [(String,Int)]
+listStock s p = map extractInt $ bt isINFONODE (children p) (("", s))
 
+-- Función auxiliar que determina si un Stock es INFONODE
+isINFONODE :: (String, Stock) -> Bool
+isINFONODE (_, INFONODE _) = True
+isINFONODE _ = False
+
+
+children :: String -> (String, Stock) -> [(String, Stock)]
+children _ ("", ROOTNODE l) = [("", node) | node <- l]
+children p (s, INNERNODE c l)
+  | p == take (length p) (s ++ [c]) = [ (s ++ [c], node) | node <- l ] ++ children p (s, INNERNODE c l)
+  | otherwise = [("", node) | node <- l]
+children _ (s, INFONODE n) = [(s, INFONODE n)]
+children _ _ = []
+
+
+extractInt :: (String, Stock) -> (String, Int)
+extractInt (s, INFONODE n) = (s, n)
+extractInt _ = error "No INFONODE found"
 
 -- FUNCIÓN GENÉRICA DE BACKTRACKING --
 bt :: (a -> Bool) -> (a -> [a]) -> a -> [a]
-bt    eS             c             n
-  | eS n      = [n]
-  | otherwise = concat (map (bt eS c) (c n))
+bt eS c n
+  | any eS (c n) = c n
+  | otherwise = concatMap (bt eS c) (c n)
+
 
 
 
